@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import shutil
 from RAG.pdf_processor import pdf_upload
@@ -10,6 +11,15 @@ from RAG.vector_db import populate_db, retrieve_docs
 from RAG.utils import text_embedding
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 all_docs = None
 all_embeddings = None
