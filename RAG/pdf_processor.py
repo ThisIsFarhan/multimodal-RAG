@@ -1,58 +1,68 @@
-import pymupdf
-from PIL import Image
 import base64
-import io
-from langchain_core.documents import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from RAG.utils import image_embedding, text_embedding
-from langchain_community.vectorstores import FAISS
+from unstructured.partition.pdf import partition_pdf
+from unstructured.partition.utils.constants import PartitionStrategy
+import os
+from dotenv import load_dotenv
+import os
+from groq import Groq
 
-def pdf_upload(pdf_path):
-    # Storage for all documents and embeddings
-    all_docs = []
-    all_embeddings = []
-    image_data_store = {}  # Store actual image data for LLM
+load_dotenv()
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+figure_dir = "./figures/"
 
-    doc = pymupdf.open(pdf_path)
+def extract_text(file_path):
+    # Getting the base64 string
+    base64_image = encode_image(file_path)
 
-    for i, page in enumerate(doc):
-        text = page.get_text()
-        if text.strip():
-            temp_doc = Document(page_content=text, metadata={"page": i, "type":"text"})
-            chunks = text_splitter.split_documents([temp_doc])
-            
-            for chunk in chunks:
-                #create embeddings
-                text_emb = text_embedding(chunk.page_content)
-                all_embeddings.append(text_emb)
-                all_docs.append(chunk)
+    chat_completion = client.chat.completions.create(
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Elaborate the findings in the image concisely in a single paragraph. Do not add anything."},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}",
+                        },
+                    },
+                ],
+            }
+        ],
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+    )
 
-        for img_idx, img in enumerate(page.get_images(full=True)):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            image = base_image["image"]
+    return chat_completion.choices[0].message.content
 
-            pil_image = Image.open(io.BytesIO(image)).convert("RGB")
+def encode_image(image_path):
+  with open(image_path, "rb") as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
 
-            img_id = f"page{i}_img{img_idx}"
+def upload_pdf(file_path):
+    elements = partition_pdf(
+            file_path,
+            strategy=PartitionStrategy.HI_RES,
+            extract_image_block_types=["Image", "Table"],
+            extract_image_block_output_dir=figure_dir
+        )
 
-            buffer = io.BytesIO()
-            pil_image.save(buffer, format="PNG")
-            img_base64 = base64.b64encode(buffer.getvalue()).decode()
-            image_data_store[img_id] = img_base64
+    text_elements = [element.text for element in elements if element.category not in ["Image", "Table"]]
 
-            img_emb = image_embedding(pil_image)
-            
-            image_doc = Document(
-                page_content=f"[Image: {img_id}]",
-                metadata={"page": i, "type":"image" ,"image_id": img_id}
-            )
-            all_docs.append(image_doc)
-            all_embeddings.append(img_emb)
-    doc.close()
+    for file in os.listdir(figure_dir):
+            extracted_text = extract_text(figure_dir + file)
+            text_elements.append(extracted_text)
 
+    text_elements = "\n\n".join(text_elements)
 
+    return text_elements
 
-    return all_docs, all_embeddings, image_data_store
+def split_text(text):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+        add_start_index=True
+    )
+
+    return text_splitter.split_text(text)
