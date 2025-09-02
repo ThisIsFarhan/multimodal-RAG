@@ -10,5 +10,18 @@ wheels/
 .venv
 .env
 
-./pdfs/
-./RAG/figures/
+# Application data folders
+pdfs/
+figures/
+RAG/figures/
+
+# PDF files anywhere in the project
+*.pdf
+
+# Image files in figures directories
+figures/**/*.png
+figures/**/*.jpg
+figures/**/*.jpeg
+figures/**/*.gif
+figures/**/*.bmp
+figures/**/*.tiff
