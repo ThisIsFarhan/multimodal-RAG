@@ -11,9 +11,8 @@ wheels/
 .env
 
 # Application data folders
-pdfs/
-figures/
-RAG/figures/
+./pdfs/
+./figures/
 
 # PDF files anywhere in the project
 *.pdf

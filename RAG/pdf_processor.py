@@ -25,6 +25,11 @@ figure_dir = "./figures/"
 # Ensure figures directory exists
 os.makedirs(figure_dir, exist_ok=True)
 
+# Clear .jpg or .jpeg files in the folder
+for f in os.listdir(figure_dir):
+    if f.lower().endswith((".jpg", ".jpeg")):
+        os.remove(os.path.join(figure_dir, f))
+
 def extract_text(file_path):
     try:
         # Getting the base64 string
