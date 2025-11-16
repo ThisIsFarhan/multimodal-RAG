@@ -63,5 +63,3 @@ A Multimodal Retrieval-Augmented Generation (RAG) application that enables users
 - [`RAG/llm.py`](RAG/llm.py): LLM-based response generation
 - [`schemas/query.py`](schemas/query.py), [`schemas/response.py`](schemas/response.py): Pydantic schemas
 
-
-**Note:** This project requires access to GROQ API and the specified Llama
